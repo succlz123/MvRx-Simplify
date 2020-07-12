@@ -1,0 +1,3 @@
+rootProject.name='MvRx Simplify'
+include ':app'
+include ':mvrx-simplify'
