@@ -5,19 +5,17 @@ import android.os.Looper
 import android.os.Message
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
-import org.succlz123.mvrx.base.BaseMvRxViewModel
-import org.succlz123.mvrx.base.DeliveryMode
-import org.succlz123.mvrx.base.RedeliverOnStart
 import org.succlz123.mvrx.base.UniqueOnly
-import org.succlz123.mvrx.state.MvRxState
-import kotlin.reflect.KProperty1
 
 // Set of MvRxView identity hash codes that have a pending invalidate.
 private val pendingInvalidates = HashSet<Int>()
+
 private val handler = Handler(Looper.getMainLooper(), Handler.Callback { message ->
     val view = message.obj as MvRxView
     pendingInvalidates.remove(System.identityHashCode(view))
-    if (view.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) view.invalidate()
+    if (view.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+        view.invalidate()
+    }
     true
 })
 
@@ -28,8 +26,6 @@ private val handler = Handler(Looper.getMainLooper(), Handler.Callback { message
  * will automatically subscribe to all state changes in the ViewModel and call [invalidate].
  */
 interface MvRxView : LifecycleOwner {
-
-    val mvrxViewId: String
 
     fun invalidate()
 
@@ -52,32 +48,10 @@ interface MvRxView : LifecycleOwner {
 
     fun postInvalidate() {
         if (pendingInvalidates.add(System.identityHashCode(this@MvRxView))) {
-            handler.sendMessage(Message.obtain(handler, System.identityHashCode(this@MvRxView), this@MvRxView))
+            handler.sendMessage(
+                Message.obtain(handler, System.identityHashCode(this@MvRxView), this@MvRxView)
+            )
         }
-    }
-
-    /**
-     * Subscribes to all state updates for the given viewModel.
-     *
-     * @param deliveryMode If [UniqueOnly] when this MvRxView goes from a stopped to started lifecycle a state value
-     * will only be emitted if the state changed. This is useful for transient views that should only
-     * be shown once (toasts, poptarts), or logging. Most other views should use false, as when a view is destroyed
-     * and recreated the previous state is necessary to recreate the view.
-     *
-     * Use [uniqueOnly] to automatically create a [UniqueOnly] mode with a unique id for this view.
-     *
-     * Default: [RedeliverOnStart].
-     */
-    fun <S : MvRxState> BaseMvRxViewModel<S>.subscribe(deliveryMode: DeliveryMode = RedeliverOnStart, subscriber: (S) -> Unit) {
-        subscribe(this@MvRxView.subscriptionLifecycleOwner, deliveryMode, subscriber)
-    }
-
-    fun <S : MvRxState> BaseMvRxViewModel<S>.selectSubscribe(
-        vararg prop1s: KProperty1<S, Any>,
-        deliveryMode: DeliveryMode = RedeliverOnStart,
-        subscriber: (Any) -> Unit
-    ) {
-        selectProperty(*prop1s).subscribe(this@MvRxView.subscriptionLifecycleOwner, deliveryMode, subscriber)
     }
 
     /**
@@ -88,7 +62,12 @@ interface MvRxView : LifecycleOwner {
      * @param An additional custom id to identify this subscription. Only necessary if there are two subscriptions
      * in this fragment with exact same properties (i.e. two subscribes, or two selectSubscribes with the same properties).
      */
-    fun uniqueOnly(customId: String? = null): UniqueOnly {
-        return UniqueOnly(listOfNotNull(mvrxViewId, customId).joinToString("_"))
+    fun uniqueOnly(rxViewId: String, customId: String? = null): UniqueOnly {
+        return UniqueOnly(
+            listOfNotNull(
+                rxViewId,
+                customId
+            ).joinToString("_")
+        )
     }
 }

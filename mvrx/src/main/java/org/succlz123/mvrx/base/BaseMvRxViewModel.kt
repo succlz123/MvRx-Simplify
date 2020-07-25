@@ -4,10 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.CallSuper
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.*
 import org.succlz123.mvrx.extension.FORCE_DEBUG
 import org.succlz123.mvrx.extension.FORCE_DISABLE_LIFECYCLE_AWARE_OBSERVER
 import org.succlz123.mvrx.extension.MutableStateChecker
@@ -23,11 +20,16 @@ import kotlin.collections.HashMap
 import kotlin.reflect.KProperty1
 
 abstract class BaseMvRxViewModel<S : MvRxState>(
-        initialState: S,
-        debugMode: Boolean = false,
-        private val stateStore: MvRxStateStore<S> = RealMvRxStateStore(initialState)
+    initialState: S, debugMode: Boolean = false,
+    private val stateStore: MvRxStateStore<S> = RealMvRxStateStore(
+        initialState
+    )
 ) : ViewModel() {
-    private val debugMode = if (FORCE_DEBUG == null) debugMode else FORCE_DEBUG
+    private val debugMode = if (FORCE_DEBUG) {
+        true
+    } else {
+        debugMode
+    }
 
     private val tag by lazy { javaClass.simpleName }
 
@@ -41,14 +43,18 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
 
     private val lifecycleOwner: LifecycleOwner = LifecycleOwner { lifecycleRegistry }
 
-    private val lifecycleRegistry: LifecycleRegistry = LifecycleRegistry(lifecycleOwner).apply { currentState = Lifecycle.State.RESUMED }
+    private val lifecycleRegistry: LifecycleRegistry =
+        LifecycleRegistry(lifecycleOwner).apply { currentState = Lifecycle.State.RESUMED }
+
+    var stateHandle: SavedStateHandle? = null
 
     internal val state: S
-        get() = stateStore.state
+        get() = stateStore.get()
 
     init {
         if (this.debugMode) {
-            mutableStateChecker = MutableStateChecker(initialState)
+            mutableStateChecker =
+                MutableStateChecker(initialState)
             Thread { validateState() }.start()
         }
     }
@@ -71,26 +77,26 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
                 if (firstState != secondState) {
                     @Suppress("UNCHECKED_CAST")
                     val changedProp = firstState::class.java.declaredFields.asSequence()
-                            .onEach { it.isAccessible = true }
-                            .firstOrNull { property ->
-                                @Suppress("Detekt.TooGenericExceptionCaught")
-                                try {
-                                    property.get(firstState) != property.get(secondState)
-                                } catch (e: Throwable) {
-                                    false
-                                }
+                        .onEach { it.isAccessible = true }
+                        .firstOrNull { property ->
+                            @Suppress("Detekt.TooGenericExceptionCaught")
+                            try {
+                                property.get(firstState) != property.get(secondState)
+                            } catch (e: Throwable) {
+                                false
                             }
+                        }
                     if (changedProp != null) {
                         throw IllegalArgumentException(
-                                "Impure reducer set on ${this@BaseMvRxViewModel::class.java.simpleName}! " +
-                                        "${changedProp.name} changed from ${changedProp.get(firstState)} " +
-                                        "to ${changedProp.get(secondState)}. " +
-                                        "Ensure that your state properties properly implement hashCode."
+                            "Impure reducer set on ${this@BaseMvRxViewModel::class.java.simpleName}! " +
+                                    "${changedProp.name} changed from ${changedProp.get(firstState)} " +
+                                    "to ${changedProp.get(secondState)}. " +
+                                    "Ensure that your state properties properly implement hashCode."
                         )
                     } else {
                         throw IllegalArgumentException(
-                                "Impure reducer set on ${this@BaseMvRxViewModel::class.java.simpleName}! Differing states were provided by the same reducer." +
-                                        "Ensure that your state properties properly implement hashCode. First state: $firstState -> Second state: $secondState"
+                            "Impure reducer set on ${this@BaseMvRxViewModel::class.java.simpleName}! Differing states were provided by the same reducer." +
+                                    "Ensure that your state properties properly implement hashCode. First state: $firstState -> Second state: $secondState"
                         )
                     }
                 }
@@ -103,13 +109,11 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
     }
 
     protected fun postState(reducer: S.() -> S) {
-        mainHandler.post {
-            setState(reducer)
-        }
+        mainHandler.post { setState(reducer) }
     }
 
-    protected fun withState(block: (state: S) -> Unit) {
-        stateStore.get(block)
+    protected fun withState(): S {
+        return stateStore.get()
     }
 
     /**
@@ -127,7 +131,13 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
         subscribe { Log.d(tag, "New State: $it") }
     }
 
-    protected fun <V> execute(executor: Executor, call: () -> V?, start: (() -> Unit)? = null, result: ((v: V?) -> Unit)? = null, error: ((e: Exception) -> Unit)? = null) {
+    protected fun <V> execute(
+        executor: Executor,
+        call: () -> V?,
+        start: (() -> Unit)? = null,
+        result: ((v: V?) -> Unit)? = null,
+        error: ((e: Exception) -> Unit)? = null
+    ) {
         executor.execute {
             mainHandler.post { start?.invoke() }
             try {
@@ -180,25 +190,47 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
             selectSubscribe(map, deliveryMode, subscriber)
         }
 
-        fun subscribe(otherVm: BaseMvRxViewModel<S>, deliveryMode: DeliveryMode = RedeliverOnStart, subscriber: (S) -> Unit) {
+        fun subscribe(
+            otherVm: BaseMvRxViewModel<S>,
+            deliveryMode: DeliveryMode = RedeliverOnStart,
+            subscriber: (S) -> Unit
+        ) {
             selectSubscribe(map, otherVm, deliveryMode, subscriber)
         }
 
-        fun subscribe(owner: LifecycleOwner?, deliveryMode: DeliveryMode = RedeliverOnStart, subscriber: (S) -> Unit) {
+        fun subscribe(
+            owner: LifecycleOwner?,
+            deliveryMode: DeliveryMode = RedeliverOnStart,
+            subscriber: (S) -> Unit
+        ) {
             selectSubscribe(map, owner, deliveryMode, subscriber = subscriber)
         }
     }
 
-    protected fun selectSubscribe(map: HashMap<KProperty1<S, Any>, Any?>, deliveryMode: DeliveryMode = RedeliverOnStart, subscriber: (S) -> Unit) {
+    private fun selectSubscribe(
+        map: HashMap<KProperty1<S, Any>, Any?>,
+        deliveryMode: DeliveryMode = RedeliverOnStart,
+        subscriber: (S) -> Unit
+    ) {
         selectSubscribe(map, null, deliveryMode, subscriber = subscriber)
     }
 
-    protected fun selectSubscribe(map: HashMap<KProperty1<S, Any>, Any?>, viewModel: BaseMvRxViewModel<S>, deliveryMode: DeliveryMode = RedeliverOnStart, subscriber: (S) -> Unit) {
+    private fun selectSubscribe(
+        map: HashMap<KProperty1<S, Any>, Any?>,
+        viewModel: BaseMvRxViewModel<S>,
+        deliveryMode: DeliveryMode = RedeliverOnStart,
+        subscriber: (S) -> Unit
+    ) {
         assertSubscribeToDifferentViewModel(viewModel)
         viewModel.selectSubscribeInternal(lifecycleOwner, map, deliveryMode, subscriber)
     }
 
-    protected fun selectSubscribe(map: HashMap<KProperty1<S, Any>, Any?>, owner: LifecycleOwner?, deliveryMode: DeliveryMode = RedeliverOnStart, subscriber: (S) -> Unit) {
+    private fun selectSubscribe(
+        map: HashMap<KProperty1<S, Any>, Any?>,
+        owner: LifecycleOwner?,
+        deliveryMode: DeliveryMode = RedeliverOnStart,
+        subscriber: (S) -> Unit
+    ) {
         selectSubscribeInternal(owner, map, deliveryMode, subscriber)
     }
 
@@ -235,10 +267,10 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
             val lastDeliveredValue = if (deliveryMode is UniqueOnly) {
                 if (activeSubscriptions.contains(deliveryMode.subscriptionId)) {
                     throw IllegalStateException(
-                            "Subscribing with a duplicate subscription id: ${deliveryMode.subscriptionId}. " +
-                                    "If you have multiple uniqueOnly subscriptions in a MvRx view that listen to the same properties " +
-                                    "you must use a custom subscription id. If you are using a custom MvRxView, make sure you are using the proper" +
-                                    "lifecycle owner. See BaseMvRxFragment for an example."
+                        "Subscribing with a duplicate subscription id: ${deliveryMode.subscriptionId}. " +
+                                "If you have multiple uniqueOnly subscriptions in a MvRx view that listen to the same properties " +
+                                "you must use a custom subscription id. If you are using a custom MvRxView, make sure you are using the proper" +
+                                "lifecycle owner. See BaseMvRxFragment for an example."
                     )
                 }
                 activeSubscriptions.add(deliveryMode.subscriptionId)
@@ -246,7 +278,12 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
             } else {
                 null
             }
-            val observer = object : MvRxLifecycleAwareObserver<S>(lifecycleOwner, deliveryMode = deliveryMode, lastDeliveredValue = lastDeliveredValue) {
+            val observer = object : MvRxLifecycleAwareObserver<S>(
+                lifecycleOwner,
+                listener,
+                deliveryMode = deliveryMode,
+                lastDeliveredValue = lastDeliveredValue
+            ) {
                 override fun onChange(nextValue: S) {
                     if (deliveryMode is UniqueOnly) {
                         lastDeliveredStates[deliveryMode.subscriptionId] = nextValue
@@ -260,7 +297,7 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
                     }
                 }
             }
-            listener.add { observer.onChange(it) }
+            listener.add(observer)
         }
     }
 
@@ -274,23 +311,14 @@ abstract class BaseMvRxViewModel<S : MvRxState>(
 }
 
 // Defines what updates a subscription should receive.
-sealed class DeliveryMode {
+sealed class DeliveryMode
 
-    internal fun appendPropertiesToId(vararg properties: KProperty1<*, *>): DeliveryMode {
-        return when (this) {
-            is RedeliverOnStart -> RedeliverOnStart
-            is UniqueOnly -> UniqueOnly(subscriptionId + "_" + properties.joinToString(",") { it.name })
-        }
-    }
-}
-
-//  每次从 stopped -> started 时候都会收到回调
+// 每次从 stopped -> started 时候都会收到回调
 object RedeliverOnStart : DeliveryMode()
 
 /**
  * 每次从 (stopped -> started), 只有 stopped 期间有变化, 才会在 started 时候收到回调
  *
- * @param subscriptionId A uniqueIdentifier for this subscription. It is an error for two unique only subscriptions to
- * have the same id.
+ * @param subscriptionId A uniqueIdentifier for this subscription. It is an error for two unique only subscriptions to have the same id.
  */
 class UniqueOnly(val subscriptionId: String) : DeliveryMode()

@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import kotlinx.android.synthetic.main.fragment_subscribe.*
-import org.succlz123.mvrx.async.*
 import org.succlz123.mvrx.demo.R
 import org.succlz123.mvrx.demo.base.BaseFragment
 import org.succlz123.mvrx.demo.base.BaseViewModel
@@ -17,13 +16,15 @@ import org.succlz123.mvrx.demo.http.HttpUtils
 import org.succlz123.mvrx.demo.sample.ArticleData
 import org.succlz123.mvrx.extension.fragmentViewModel
 import org.succlz123.mvrx.extension.withState
+import org.succlz123.mvrx.result.*
 import org.succlz123.mvrx.state.MvRxState
+import org.succlz123.mvrx.view.MvRxView
 
 data class SubscribeState(
     val name: String = "Shy",
     val yy: YY = YY(),
     val age: Int = 21,
-    val articleData: Async<ArticleData> = Uninitialized
+    val articleData: Result<ArticleData> = Uninitialized
 ) : MvRxState
 
 class YY(var xx: String = "333")
@@ -36,8 +37,8 @@ class SubscribeViewModel(state: SubscribeState, private val apiService: ApiServi
     }
 
     fun changeName(newName: String) {
-        withState { state ->
-            val yy = state.yy
+        withState().let {
+            val yy = it.yy
             setState {
                 copy(name = newName).apply {
                     val xxxxx = yy
@@ -49,15 +50,13 @@ class SubscribeViewModel(state: SubscribeState, private val apiService: ApiServi
     }
 
     fun changeAge(newAge: Int) {
-        withState {
-            setState { copy(age = newAge) }
-        }
+        setState { copy(age = newAge) }
     }
 
     fun getArticleData() {
-        withState {
+        withState().let {
             if (it.articleData is Loading) {
-                return@withState
+                return
             }
             Thread {
                 val result = Api.api.getArticleList().execute().body() ?: return@Thread
@@ -77,7 +76,7 @@ class SubscribeViewModel(state: SubscribeState, private val apiService: ApiServi
     }
 }
 
-class SubscribeFragment : BaseFragment() {
+class SubscribeFragment : BaseFragment(), MvRxView {
 
     val subscribeViewModel: SubscribeViewModel by fragmentViewModel(creator = {
         SubscribeViewModel.create()

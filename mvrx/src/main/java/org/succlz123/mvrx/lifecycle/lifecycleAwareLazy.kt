@@ -26,7 +26,7 @@ class lifecycleAwareLazy<out T>(private val owner: LifecycleOwner, initializer: 
 
     init {
         owner.lifecycle.addObserver(object : LifecycleObserver {
-            @OnLifecycleEvent(Lifecycle.Event.ON_CREATE)
+            @OnLifecycleEvent(Lifecycle.Event.ON_START)
             fun onStart() {
                 if (!isInitialized()) value
                 owner.lifecycle.removeObserver(this)

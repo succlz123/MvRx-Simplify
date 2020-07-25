@@ -13,9 +13,9 @@ import kotlin.reflect.KCallable
 import kotlin.reflect.KClass
 
 private const val IMMUTABLE_LIST_MESSAGE =
-        "Use the immutable listOf(...) method instead. You can append it with `val newList = listA + listB`"
+    "Use the immutable listOf(...) method instead. You can append it with `val newList = listA + listB`"
 private const val IMMUTABLE_MAP_MESSAGE =
-        "Use the immutable mapOf(...) method instead. You can append it with `val newMap = mapA + mapB`"
+    "Use the immutable mapOf(...) method instead. You can append it with `val newMap = mapA + mapB`"
 
 /**
  * Ensures that the state class is immutable.
@@ -39,25 +39,25 @@ internal fun KClass<*>.assertImmutability() {
     }
 
     java.declaredFields
-            // During tests, jacoco can add a transient field called jacocoData.
-            .filterNot { Modifier.isTransient(it.modifiers) }
-            .forEach { prop ->
-                when {
-                    !Modifier.isFinal(prop.modifiers) -> "State property ${prop.name} must be a val, not a var."
-                    prop.isSubtype(ArrayList::class) -> "You cannot use ArrayList for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
-                    prop.isSubtype(SparseArray::class) -> "You cannot use SparseArray for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
-                    prop.isSubtype(LongSparseArray::class) -> "You cannot use LongSparseArray for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
-                    prop.isSubtype(SparseArrayCompat::class) -> "You cannot use SparseArrayCompat for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
-                    prop.isSubtype(ArrayMap::class) -> "You cannot use ArrayMap for ${prop.name}.\n$IMMUTABLE_MAP_MESSAGE"
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT &&
-                            prop.isSubtype(android.util.ArrayMap::class) -> "You cannot use ArrayMap for ${prop.name}.\n$IMMUTABLE_MAP_MESSAGE"
-                    prop.isSubtype(HashMap::class) -> "You cannot use HashMap for ${prop.name}.\n$IMMUTABLE_MAP_MESSAGE"
-                    prop.isSubtype(Function::class, KCallable::class) -> {
-                        "You cannot use functions inside MvRx state. Only pure data should be represented: ${prop.name}"
-                    }
-                    else -> null
-                }?.let { throw IllegalArgumentException("Invalid property in state ${this@assertImmutability::class.simpleName}: $it") }
-            }
+        // During tests, jacoco can add a transient field called jacocoData.
+        .filterNot { Modifier.isTransient(it.modifiers) }
+        .forEach { prop ->
+            when {
+                !Modifier.isFinal(prop.modifiers) -> "State property ${prop.name} must be a val, not a var."
+                prop.isSubtype(ArrayList::class) -> "You cannot use ArrayList for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
+                prop.isSubtype(SparseArray::class) -> "You cannot use SparseArray for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
+                prop.isSubtype(LongSparseArray::class) -> "You cannot use LongSparseArray for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
+                prop.isSubtype(SparseArrayCompat::class) -> "You cannot use SparseArrayCompat for ${prop.name}.\n$IMMUTABLE_LIST_MESSAGE"
+                prop.isSubtype(ArrayMap::class) -> "You cannot use ArrayMap for ${prop.name}.\n$IMMUTABLE_MAP_MESSAGE"
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT &&
+                        prop.isSubtype(android.util.ArrayMap::class) -> "You cannot use ArrayMap for ${prop.name}.\n$IMMUTABLE_MAP_MESSAGE"
+                prop.isSubtype(HashMap::class) -> "You cannot use HashMap for ${prop.name}.\n$IMMUTABLE_MAP_MESSAGE"
+                prop.isSubtype(Function::class, KCallable::class) -> {
+                    "You cannot use functions inside MvRx state. Only pure data should be represented: ${prop.name}"
+                }
+                else -> null
+            }?.let { throw IllegalArgumentException("Invalid property in state ${this@assertImmutability::class.simpleName}: $it") }
+        }
 }
 
 /**
@@ -92,7 +92,8 @@ internal class MutableStateChecker<S : MvRxState>(initialState: S) {
         }
     }
 
-    private var previousState = StateWrapper(initialState)
+    private var previousState =
+        StateWrapper(initialState)
 
     /**
      * Should be called whenever state changes. This validates that the hashcode of each state
@@ -101,6 +102,7 @@ internal class MutableStateChecker<S : MvRxState>(initialState: S) {
      */
     fun onStateChanged(newState: S) {
         previousState.validate()
-        previousState = StateWrapper(newState)
+        previousState =
+            StateWrapper(newState)
     }
 }

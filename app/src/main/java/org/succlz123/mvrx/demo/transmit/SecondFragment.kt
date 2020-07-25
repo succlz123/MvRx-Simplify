@@ -14,6 +14,7 @@ import org.succlz123.mvrx.extension.args
 import org.succlz123.mvrx.extension.fragmentViewModel
 import org.succlz123.mvrx.extension.withState
 import org.succlz123.mvrx.state.MvRxState
+import org.succlz123.mvrx.view.MvRxView
 
 data class SecondState(
     val name: String = "",
@@ -42,14 +43,14 @@ class SecondViewModel(secondState: SecondState, private val apiService: ApiServi
     }
 }
 
-class SecondFragment : BaseFragment() {
+class SecondFragment : BaseFragment(), MvRxView {
 
     /**
      * 接受传递过来的数据  只需要指定类型 从 args()中取出
      *  在BaseFragment中 我们把数据存在了 MvRx.KEY_ARG 里
      *  @see [BaseFragment]
      */
-    val person: Person by args()
+    val person: Person by args("123")
     val secondViewModel: SecondViewModel by fragmentViewModel(creator = { SecondViewModel.create() })
 
     override fun onCreateView(

@@ -1,36 +1,17 @@
 package org.succlz123.mvrx.viewmodel
 
 import android.app.Application
+import android.os.Bundle
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.*
 import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryOwner
 import org.succlz123.mvrx.base.BaseMvRxViewModel
 import org.succlz123.mvrx.state.MvRxState
 
-/**
- * Helper ViewModelProvider that has a single method for taking either a [Fragment] or [FragmentActivity] instead
- * of two separate ones. The logic for providing the correct scope is inside the method.
- */
 object MvRxViewModelProvider {
-    /**
-     * MvRx specific ViewModelProvider used for creating a BaseMvRxViewModel scoped to either a [Fragment] or [FragmentActivity].
-     * If this is in a [Fragment], it cannot be called before the Fragment has been added to an Activity or wrapped in a [Lazy] call.
-     *
-     * @param viewModelClass The class of the ViewModel you would like an instance of.
-     * @param stateClass The class of the State used by the ViewModel.
-     * @param viewModelContext The [ViewModelContext] which contains arguments and the owner of the ViewModel.
-     *                         Either [ActivityViewModelContext] or [FragmentViewModelContext].
-     * @param key An optional key for the ViewModel in the store. This is optional but should be used if you have multiple of the same
-     *            ViewModel class in the same scope.
-     * @param forExistingViewModel If true the viewModel should already have been created. If it has not been created already,
-     *                             a [ViewModelDoesNotExistException] will be thrown
-     * @param initialStateFactory A way to specify how to create the initial state, can be mocked out for testing.
-     *
-     */
+
     fun <VM : BaseMvRxViewModel<S>, S : MvRxState> get(
         viewModelClass: Class<out VM>,
         viewModelContext: ViewModelContext,
@@ -53,13 +34,54 @@ object MvRxViewModelProvider {
             throw Exception("ViewModel Context is null!")
         }
         return ViewModelProvider(
-                viewModelContext.owner,
-                MvRxVMFactory(viewModelClass, viewModelContext, creator,
-                        enableSavedStateHandle, forExistingViewModel, savedStateRegistryOwner, null
-                )
+            viewModelContext.owner,
+            MvRxVMFactory(
+                viewModelClass, viewModelContext, creator,
+                enableSavedStateHandle, forExistingViewModel, savedStateRegistryOwner, null
+            )
         ).get(key, viewModelClass)
     }
 }
+
+class MvRxVMFactory<VM : BaseMvRxViewModel<S>, S : MvRxState>(
+    private val viewModelClass: Class<out VM>,
+    private val viewModelContext: ViewModelContext,
+    private val creator: (handle: SavedStateHandle?) -> VM,
+    private val enableSavedStateHandle: Boolean = false,
+    private val forExistingViewModel: Boolean = false,
+    owner: SavedStateRegistryOwner,
+    defaultArgs: Bundle?
+) : AbstractSavedStateViewModelFactory(owner, defaultArgs) {
+
+    override fun <T : ViewModel?> create(
+        key: String,
+        modelClass: Class<T>,
+        handle: SavedStateHandle
+    ): T {
+        // doesn't need SavedStateHandle
+        if (!enableSavedStateHandle && !forExistingViewModel) {
+            return creator.invoke(null) as T
+        }
+        if (forExistingViewModel && handle.get<String>("123") == null) {
+            throw ViewModelDoesNotExistException(
+                viewModelClass,
+                viewModelContext,
+                key
+            )
+        }
+        val vm = creator.invoke(handle) as T
+        if (vm is BaseMvRxViewModel<*>) {
+            vm.stateHandle = handle
+        }
+        return vm
+    }
+}
+
+internal class ViewModelDoesNotExistException(
+    viewModelClass: Class<*>,
+    viewModelContext: ViewModelContext,
+    key: String
+) : IllegalStateException("ViewModel of type ${viewModelClass.name} for ${viewModelContext.owner}[$key] does not exist yet!")
 
 sealed class ViewModelContext {
 
@@ -82,8 +104,8 @@ sealed class ViewModelContext {
 }
 
 data class ActivityViewModelContext(
-        override val activity: FragmentActivity,
-        override val args: Any?
+    override val activity: FragmentActivity,
+    override val args: Any?
 ) : ViewModelContext() {
 
     override val owner get() = activity
@@ -92,9 +114,9 @@ data class ActivityViewModelContext(
 }
 
 data class FragmentViewModelContext(
-        override val activity: FragmentActivity,
-        val fragment: Fragment,
-        override val args: Any?
+    override val activity: FragmentActivity,
+    val fragment: Fragment,
+    override val args: Any?
 ) : ViewModelContext() {
 
     override val owner get() = fragment

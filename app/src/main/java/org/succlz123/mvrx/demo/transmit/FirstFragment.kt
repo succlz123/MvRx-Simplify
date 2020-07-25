@@ -12,6 +12,7 @@ import org.succlz123.mvrx.demo.http.ApiService
 import org.succlz123.mvrx.demo.http.HttpUtils
 import kotlinx.android.synthetic.main.fragment_first.*
 import org.succlz123.mvrx.state.MvRxState
+import org.succlz123.mvrx.view.MvRxView
 
 data class FirstState(val name: String = "--") : MvRxState
 
@@ -33,7 +34,7 @@ class FirstViewModel(firstState: FirstState, private val apiService: ApiService)
     }
 }
 
-class FirstFragment : BaseFragment() {
+class FirstFragment : BaseFragment(), MvRxView {
 
     override fun onCreateView(
         inflater: LayoutInflater,

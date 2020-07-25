@@ -2,7 +2,7 @@
 
 This is a simplified version of MvRx. The API is mostly the same as MvRx.
 
-> The adjustment point
+> modification points
 
 1. Remove initialState creation reflection call
 
@@ -19,3 +19,5 @@ This is a simplified version of MvRx. The API is mostly the same as MvRx.
 5. Use the SavedStateHandle for state saving and recovery
 
 6. Optimize the method of attribute observation
+
+7. Remove BaseMvRxFragment

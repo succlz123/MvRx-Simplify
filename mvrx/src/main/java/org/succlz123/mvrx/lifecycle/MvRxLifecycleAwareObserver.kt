@@ -8,6 +8,7 @@ import androidx.lifecycle.OnLifecycleEvent
 import org.succlz123.mvrx.base.DeliveryMode
 import org.succlz123.mvrx.base.RedeliverOnStart
 import org.succlz123.mvrx.base.UniqueOnly
+import org.succlz123.mvrx.state.MvRxStateListener
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -17,10 +18,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 abstract class MvRxLifecycleAwareObserver<T>(
     private var owner: LifecycleOwner?,
+    private var outerListener: MvRxStateListener<T>,
     private val activeState: State = DEFAULT_ACTIVE_STATE,
     private val deliveryMode: DeliveryMode,
     private var lastDeliveredValue: T?
 ) : LifecycleObserver {
+
+    companion object {
+        private val DEFAULT_ACTIVE_STATE = State.STARTED
+    }
+
     private var isDestroy: Boolean = false
     private var lastUndeliveredValue: T? = null
     private val locked = AtomicBoolean(true)
@@ -28,9 +35,7 @@ abstract class MvRxLifecycleAwareObserver<T>(
     var lastValue: T? = null
 
     init {
-        owner?.let {
-            requireOwner().lifecycle.addObserver(this)
-        }
+        requireOwner().lifecycle.addObserver(this)
     }
 
     @OnLifecycleEvent(Event.ON_DESTROY)
@@ -38,6 +43,8 @@ abstract class MvRxLifecycleAwareObserver<T>(
         requireOwner().lifecycle.removeObserver(this)
         lastDeliveredValue = null
         owner = null
+        outerListener.remove(this)
+        onComplete()
         isDestroy = true
     }
 
@@ -93,9 +100,6 @@ abstract class MvRxLifecycleAwareObserver<T>(
         locked.set(true)
     }
 
-    private fun requireOwner(): LifecycleOwner = requireNotNull(owner) { "Cannot access lifecycleOwner after onDestroy." }
-
-    companion object {
-        private val DEFAULT_ACTIVE_STATE = State.STARTED
-    }
+    private fun requireOwner(): LifecycleOwner =
+        requireNotNull(owner) { "Cannot access lifecycleOwner after onDestroy." }
 }

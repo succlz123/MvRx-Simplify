@@ -5,15 +5,14 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import kotlinx.android.synthetic.main.fragment_sample.*
-import org.succlz123.mvrx.async.*
-import org.succlz123.mvrx.base.BaseMvRxFragment
-import org.succlz123.mvrx.base.BaseMvRxViewModel
-import org.succlz123.mvrx.demo.R
-import org.succlz123.mvrx.demo.http.Api
 import org.succlz123.mvrx.extension.fragmentViewModel
 import org.succlz123.mvrx.extension.withState
 import org.succlz123.mvrx.state.MvRxState
+import org.succlz123.mvrx.view.MvRxView
+import kotlinx.android.synthetic.main.fragment_sample.*
+import org.succlz123.mvrx.demo.R
+import org.succlz123.mvrx.demo.base.BaseFragment
+import org.succlz123.mvrx.result.*
 
 /**
  *
@@ -27,56 +26,19 @@ import org.succlz123.mvrx.state.MvRxState
 data class SampleState(
     val name: String = "--",
     val age: Int = 0,
-    val articleData: Async<ArticleData> = Uninitialized
+    val articleData: Result<ArticleData> = Uninitialized
 ) : MvRxState
 
-class SampleViewModel(initialState: SampleState) :
-    BaseMvRxViewModel<SampleState>(initialState, debugMode = true) {
+class SampleFragment : BaseFragment(), MvRxView {
 
-    companion object {
+    val sampleViewModel: SampleViewModel by fragmentViewModel(
+        enableSavedStateHandle = true,
+        creator = { SampleViewModel.create() }
+    )
 
-        fun create(): SampleViewModel {
-            return SampleViewModel(SampleState())
-        }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
     }
-
-    init {
-        /**
-         *  logStateChanges 打印 State 变化日志 debugMode = true 时打印
-         */
-        logStateChanges()
-    }
-
-    fun changeName(newName: String) {
-        withState { state ->
-            setState { copy(name = newName) }
-        }
-    }
-
-    fun changeAge(newAge: Int) {
-        withState {
-            setState { copy(age = newAge) }
-        }
-    }
-
-    fun getArticleData() {
-        withState {
-            if (it.articleData is Loading) {
-                return@withState
-            }
-            Thread {
-                val result = Api.api.getArticleList().execute().body() ?: return@Thread
-                postState {
-                    copy(articleData = Success(result))
-                }
-            }.start()
-        }
-    }
-}
-
-class SampleFragment : BaseMvRxFragment() {
-
-    val sampleViewModel: SampleViewModel by fragmentViewModel(creator = { SampleViewModel.create() })
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -88,17 +50,17 @@ class SampleFragment : BaseMvRxFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        sampleViewModel.changeAge(33)
         bnChangeName.setOnClickListener { sampleViewModel.changeName("Sunhy") }
         bnChangeAge.setOnClickListener { sampleViewModel.changeAge(21) }
         bnRequest.setOnClickListener { sampleViewModel.getArticleData() }
     }
 
     override fun invalidate() {
+        val xx = 3
         withState(sampleViewModel) { state ->
             tvName.text = state.name
             tvAge.text = state.age.toString()
-
             when (state.articleData) {
                 is Success -> {
                     tvData.text = state.articleData.invoke().data.toString()
